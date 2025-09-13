@@ -1,2 +1,232 @@
 # Webpage
 or a website to give parents (guardians) gets information on students daily activities in school 
+from flask import Flask, render_template, request, redirect, url_for, session
+import os
+
+app = Flask(__name__)
+app.secret_key = "supersecretkey"  # needed for login sessions
+
+# Dummy parent accounts (username: password, child)
+parents = {
+    "parent1": {"password": "pass123", "child": "John Doe"},
+    "parent2": {"password": "pass456", "child": "Mary Jane"}
+}
+
+# Dummy student activity data
+students = [
+    {
+        "name": "John Doe",
+        "class": "Grade 5",
+        "activities": [
+            {"date": "2025-09-13", "activity": "Math homework completed, played football in PE."},
+            {"date": "2025-09-12", "activity": "Science project presentation, reading practice."}
+        ]
+    },
+    {
+        "name": "Mary Jane",
+        "class": "Grade 3",
+        "activities": [
+            {"date": "2025-09-13", "activity": "Drawing in art class, spelling test taken."},
+            {"date": "2025-09-12", "activity": "Story writing exercise, music lesson."}
+        ]
+    }
+]
+
+contacts = {
+    "teacher": "teacher@school.edu",
+    "principal": "principal@school.edu",
+    "phone": "+123456789"
+}
+
+# Ensure templates folder exists
+if not os.path.exists("templates"):
+    os.makedirs("templates")
+
+# Base template
+with open("templates/base.html", "w") as f:
+    f.write("""<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+    <meta charset=\"UTF-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+    <title>Parent Portal</title>
+    <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css\">
+</head>
+<body>
+    <nav class=\"navbar navbar-expand-lg navbar-dark bg-primary\">
+        <div class=\"container-fluid\">
+            <a class=\"navbar-brand\" href=\"/\">Parent Portal</a>
+            <div class=\"collapse navbar-collapse\">
+                <ul class=\"navbar-nav me-auto\">
+                    {% if 'user' in session %}
+                        <li class=\"nav-item\"><a class=\"nav-link\" href=\"/dashboard\">Dashboard</a></li>
+                        <li class=\"nav-item\"><a class=\"nav-link\" href=\"/activities\">Daily Activities</a></li>
+                        <li class=\"nav-item\"><a class=\"nav-link\" href=\"/contact\">Contact</a></li>
+                        <li class=\"nav-item\"><a class=\"nav-link\" href=\"/logout\">Logout</a></li>
+                    {% else %}
+                        <li class=\"nav-item\"><a class=\"nav-link\" href=\"/login\">Login</a></li>
+                        <li class=\"nav-item\"><a class=\"nav-link\" href=\"/register\">Register</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class=\"container mt-4\">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class=\"alert alert-warning\">{{ messages[0] }}</div>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>""")
+
+# Login page
+with open("templates/login.html", "w") as f:
+    f.write("""{% extends 'base.html' %}
+{% block content %}
+<h2>Parent Login</h2>
+<form method=\"POST\" action=\"/login\">
+    <div class=\"mb-3\">
+        <label>Username</label>
+        <input type=\"text\" class=\"form-control\" name=\"username\" required>
+    </div>
+    <div class=\"mb-3\">
+        <label>Password</label>
+        <input type=\"password\" class=\"form-control\" name=\"password\" required>
+    </div>
+    <button type=\"submit\" class=\"btn btn-primary\">Login</button>
+</form>
+<p class=\"mt-3\">Don't have an account? <a href=\"/register\">Register here</a>.</p>
+{% endblock %}""")
+
+# Registration page
+with open("templates/register.html", "w") as f:
+    f.write("""{% extends 'base.html' %}
+{% block content %}
+<h2>Parent Registration</h2>
+<form method=\"POST\" action=\"/register\">
+    <div class=\"mb-3\">
+        <label>Username</label>
+        <input type=\"text\" class=\"form-control\" name=\"username\" required>
+    </div>
+    <div class=\"mb-3\">
+        <label>Password</label>
+        <input type=\"password\" class=\"form-control\" name=\"password\" required>
+    </div>
+    <div class=\"mb-3\">
+        <label>Child's Name</label>
+        <input type=\"text\" class=\"form-control\" name=\"child\" required>
+    </div>
+    <button type=\"submit\" class=\"btn btn-success\">Register</button>
+</form>
+<p class=\"mt-3\">Already have an account? <a href=\"/login\">Login here</a>.</p>
+{% endblock %}""")
+
+# Dashboard
+with open("templates/dashboard.html", "w") as f:
+    f.write("""{% extends 'base.html' %}
+{% block content %}
+<h1>Dashboard</h1>
+<p>Welcome {{ student.name }}'s Parent! Here you can see your child's details.</p>
+<ul class=\"list-group\">
+    <li class=\"list-group-item\"><strong>Name:</strong> {{ student.name }}</li>
+    <li class=\"list-group-item\"><strong>Class:</strong> {{ student.class }}</li>
+</ul>
+{% endblock %}""")
+
+# Daily Activities
+with open("templates/activities.html", "w") as f:
+    f.write("""{% extends 'base.html' %}
+{% block content %}
+<h1>Daily Activities</h1>
+<div class=\"card mb-3\">
+    <div class=\"card-header bg-info text-white\">
+        {{ student.name }} - {{ student.class }}
+    </div>
+    <ul class=\"list-group list-group-flush\">
+        {% for act in student.activities %}
+            <li class=\"list-group-item\"><strong>{{ act.date }}:</strong> {{ act.activity }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}""")
+
+# Contact Page
+with open("templates/contact.html", "w") as f:
+    f.write("""{% extends 'base.html' %}
+{% block content %}
+<h1>Contact Information</h1>
+<ul class=\"list-group\">
+    <li class=\"list-group-item\">Teacher Email: {{ contacts.teacher }}</li>
+    <li class=\"list-group-item\">Principal Email: {{ contacts.principal }}</li>
+    <li class=\"list-group-item\">School Phone: {{ contacts.phone }}</li>
+</ul>
+{% endblock %}""")
+
+# Routes
+@app.route("/")
+def index():
+    if "user" in session:
+        return redirect(url_for("dashboard"))
+    return redirect(url_for("login"))
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        if username in parents and parents[username]["password"] == password:
+            session["user"] = username
+            return redirect(url_for("dashboard"))
+        else:
+            return render_template("login.html", error="Invalid credentials")
+    return render_template("login.html")
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form["username"]
+        password = request.form["password"]
+        child = request.form["child"]
+
+        if username in parents:
+            return render_template("register.html", error="Username already exists")
+
+        parents[username] = {"password": password, "child": child}
+        session["user"] = username
+        return redirect(url_for("dashboard"))
+
+    return render_template("register.html")
+
+@app.route("/dashboard")
+def dashboard():
+    if "user" not in session:
+        return redirect(url_for("login"))
+    child_name = parents[session["user"]]["child"]
+    student = next((s for s in students if s["name"] == child_name), {"name": child_name, "class": "N/A", "activities": []})
+    return render_template("dashboard.html", student=student)
+
+@app.route("/activities")
+def activities():
+    if "user" not in session:
+        return redirect(url_for("login"))
+    child_name = parents[session["user"]]["child"]
+    student = next((s for s in students if s["name"] == child_name), {"name": child_name, "class": "N/A", "activities": []})
+    return render_template("activities.html", student=student)
+
+@app.route("/contact")
+def contact():
+    if "user" not in session:
+        return redirect(url_for("login"))
+    return render_template("contact.html", contacts=contacts)
+
+@app.route("/logout")
+def logout():
+    session.pop("user", None)
+    return redirect(url_for("login"))
+
+# Run the app
+if __name__ == "__main__":
+    app.run(debug=True)
